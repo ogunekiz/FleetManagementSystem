@@ -1,0 +1,27 @@
+services:
+  fleet-db:
+    image: postgres:16-alpine
+    container_name: fleet_postgres_db
+    environment:
+      POSTGRES_USER: fleet_user
+      POSTGRES_PASSWORD: FleetPassword123!
+      POSTGRES_DB: FleetManagementDb
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_fleet_data:/var/lib/postgresql/data
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: fleet_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@fleet.com
+      PGADMIN_DEFAULT_PASSWORD: AdminPassword123!
+    ports:
+      - "5050:80"
+    depends_on:
+      - fleet-db
+
+volumes:
+  postgres_fleet_data:
+    driver: local

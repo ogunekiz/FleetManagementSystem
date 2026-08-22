@@ -1,0 +1,27 @@
+## Visual Studio / .NET Ignore Rules
+*.user
+*.userosscache
+*.sln.docstates
+*.userprefs
+*.suo
+
+# Build & Output Folders
+[Bb]in/
+[Ob]j/
+out/
+
+# Visual Studio 2015/2017/2019/2022 working folder
+.vs/
+.idea/
+.vscode/
+
+# Environment settings
+appsettings.Development.json
+appsettings.Local.json
+
+# Docker local data
+postgres_fleet_data/
+
+# OS Generated files
+.DS_Store
+Thumbs.db
