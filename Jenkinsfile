@@ -3,11 +3,28 @@ pipeline {
 
     environment {
         DOTNET_CLI_HOME = "/tmp/dotnet"
-        PATH = "$PATH:/usr/share/dotnet:/usr/local/share/dotnet:/root/.dotnet:/root/.dotnet/tools"
+        DOTNET_INSTALL_DIR = "/var/jenkins_home/dotnet"
+        PATH = "$PATH:/var/jenkins_home/dotnet:/root/.dotnet/tools"
         WIN_SERVER_IP = '192.168.1.8' // Windows Server IIS IP
     }
 
     stages {
+        stage('0. Setup .NET 9 SDK') {
+            steps {
+                echo '⚙️ .NET 9 SDK ortamı hazırlanıyor...'
+                sh '''
+                    mkdir -p $DOTNET_INSTALL_DIR
+                    if [ ! -f "$DOTNET_INSTALL_DIR/dotnet" ]; then
+                        echo "📥 .NET 9 SDK indiriliyor ve kuruluyor..."
+                        curl -sSL https://dot.net/v1/dotnet-install.sh | bash -s -- --version 9.0.100 --install-dir $DOTNET_INSTALL_DIR
+                    else
+                        echo "✅ .NET SDK zaten yüklü."
+                    fi
+                    $DOTNET_INSTALL_DIR/dotnet --version
+                '''
+            }
+        }
+
         stage('1. Checkout Code') {
             steps {
                 echo '📥 GitHub repolarından kodlar çekiliyor...'
@@ -19,8 +36,6 @@ pipeline {
             steps {
                 echo '🔨 .NET 9 Projesi derleniyor...'
                 sh '''
-                    export PATH=$PATH:/usr/share/dotnet:/usr/local/share/dotnet:/root/.dotnet:/root/.dotnet/tools
-                    which dotnet || echo ".NET SDK bulunamadı, varsayılan path kontrol ediliyor..."
                     dotnet restore FleetManagementSystem.sln
                     dotnet build FleetManagementSystem.sln --configuration Release --no-restore
                 '''
@@ -31,7 +46,6 @@ pipeline {
             steps {
                 echo '🧪 Unit ve Integration testler koşturuluyor...'
                 sh '''
-                    export PATH=$PATH:/usr/share/dotnet:/usr/local/share/dotnet:/root/.dotnet:/root/.dotnet/tools
                     dotnet test FleetManagementSystem.sln --configuration Release --no-build --logger "trx;LogFileName=test_results.trx" || true
                 '''
             }
@@ -50,7 +64,6 @@ pipeline {
                 catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
                     withSonarQubeEnv('SonarQube') {
                         sh '''
-                            export PATH=$PATH:/usr/share/dotnet:/usr/local/share/dotnet:/root/.dotnet:/root/.dotnet/tools
                             dotnet tool install --global dotnet-sonarscanner || true
                             dotnet-sonarscanner begin /k:"FleetManagementSystem" /d:sonar.host.url="http://devsecops_sonarqube:9000" /d:sonar.token="$SONAR_AUTH_TOKEN"
                             dotnet build FleetManagementSystem.sln --configuration Release
@@ -78,7 +91,6 @@ pipeline {
             steps {
                 echo '🚀 Canlı Windows Server IIS ortamına publish ediliyor...'
                 sh '''
-                    export PATH=$PATH:/usr/share/dotnet:/usr/local/share/dotnet:/root/.dotnet:/root/.dotnet/tools
                     dotnet publish FleetManagement.WebApi/FleetManagement.WebApi.csproj -c Release -o ./publish
                 '''
             }
