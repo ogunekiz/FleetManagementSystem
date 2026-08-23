@@ -2,8 +2,8 @@ pipeline {
     agent any
 
     environment {
-        DOTNET_CLI_HOME = "/tmp/dotnet"
-        DOTNET_INSTALL_DIR = "/var/jenkins_home/dotnet"
+        DOTNET_CLI_HOME = '/tmp/dotnet'
+        DOTNET_INSTALL_DIR = '/var/jenkins_home/dotnet'
         DOTNET_SYSTEM_GLOBALIZATION_INVARIANT = '1'
         PATH = "$PATH:/var/jenkins_home/dotnet:/root/.dotnet/tools"
         WIN_SERVER_IP = '192.168.1.8' // Windows Server IIS IP
@@ -91,9 +91,24 @@ pipeline {
         stage('6. Deploy to Production (IIS)') {
             steps {
                 echo '🚀 Canlı Windows Server IIS ortamına publish ediliyor...'
-                sh '''
-                    dotnet publish FleetManagement.WebApi/FleetManagement.WebApi.csproj -c Release -o ./publish
-                '''
+                withCredentials([usernamePassword(credentialsId: 'win-server-creds', passwordVariable: 'WIN_PASS', usernameVariable: 'WIN_USER')]) {
+                    sh '''
+                # 1. Linux Agent üzerinde artifact üret
+                dotnet publish FleetManagement.WebApi/FleetManagement.WebApi.csproj -c Release -o ./publish
+
+                # 2. Gerekli sshpass paketini kontrol et/yükle
+                command -v sshpass >/dev/null 2>&1 || apt-get update && apt-get install -y sshpass
+
+                # 3. IIS App Pool'u durdur (Kilitli DLL hatası almamak için)
+                sshpass -p "$WIN_PASS" ssh -o StrictHostKeyChecking=no ${WIN_USER}@${WIN_SERVER_IP} "powershell -Command Stop-WebAppPool -Name FleetManagementApi" || true
+
+                # 4. Publish dosyalarını SCP ile Windows Server'a aktar
+                sshpass -p "$WIN_PASS" scp -r -o StrictHostKeyChecking=no ./publish/* ${WIN_USER}@${WIN_SERVER_IP}:C:/inetpub/wwwroot/FleetApi/
+
+                # 5. IIS App Pool'u tekrar başlat
+                sshpass -p "$WIN_PASS" ssh -o StrictHostKeyChecking=no ${WIN_USER}@${WIN_SERVER_IP} "powershell -Command Start-WebAppPool -Name FleetManagementApi"
+            '''
+                }
             }
         }
 
