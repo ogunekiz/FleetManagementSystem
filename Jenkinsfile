@@ -60,11 +60,27 @@ pipeline {
             steps {
                 echo '🛡️ SonarQube SAST taraması...'
                 withCredentials([string(credentialsId: 'sonarqube-token', variable: 'SONAR_TOKEN')]) {
-                    sh '''
-                        echo "=== CURL TEST START ==="
-                        curl -i http://devsecops_sonarqube:9000/api/server/version
-                        echo "\n=== CURL TEST END ==="
-                    '''
+                    withSonarQubeEnv('SonarQube') {
+                        sh '''
+                            export DOTNET_ROOT=/var/jenkins_home/dotnet
+                            export PATH=$PATH:$DOTNET_ROOT:/var/jenkins_home/.dotnet/tools
+                            export SONAR_TOKEN=$SONAR_TOKEN
+                            
+                            # devsecops_sonarqube adından IP çözümleniyor (HTTP 400 Host hatasını aşmak için)
+                            SONAR_IP=$(getent hosts devsecops_sonarqube | awk '{ print $1 }')
+                            echo "🎯 Hedef SonarQube IP Adresi: http://${SONAR_IP}:9000"
+
+                            dotnet tool install --global dotnet-sonarscanner || true
+                            
+                            /var/jenkins_home/.dotnet/tools/dotnet-sonarscanner begin \
+                              /k:"FleetManagementSystem" \
+                              /d:sonar.host.url="http://${SONAR_IP}:9000"
+
+                            dotnet build FleetManagementSystem.sln --configuration Release -p:NoWarn=NETSDK1188 -clp:NoSummary
+
+                            /var/jenkins_home/.dotnet/tools/dotnet-sonarscanner end
+                        '''
+                    }
                 }
             }
         }
