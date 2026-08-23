@@ -4,6 +4,7 @@ pipeline {
     environment {
         DOTNET_CLI_HOME = '/tmp/dotnet'
         DOTNET_INSTALL_DIR = '/var/jenkins_home/dotnet'
+        DOTNET_ROOT = '/var/jenkins_home/dotnet'
         DOTNET_SYSTEM_GLOBALIZATION_INVARIANT = '1'
         DOTNET_CLI_TELEMETRY_OPTOUT = '1'
         PATH = "$PATH:/var/jenkins_home/dotnet:/root/.dotnet/tools:/var/jenkins_home/.dotnet/tools"
@@ -61,6 +62,9 @@ pipeline {
                 withCredentials([string(credentialsId: 'sonarqube-token', variable: 'SONAR_TOKEN')]) {
                     withSonarQubeEnv('SonarQube') {
                         sh '''
+                            export DOTNET_ROOT=/var/jenkins_home/dotnet
+                            export PATH=$PATH:$DOTNET_ROOT:/var/jenkins_home/.dotnet/tools
+                            
                             dotnet tool install --global dotnet-sonarscanner || true
                             
                             dotnet sonarscanner begin /k:"FleetManagementSystem" \
