@@ -68,12 +68,11 @@ pipeline {
                             dotnet tool install --global dotnet-sonarscanner || true
                             
                             dotnet sonarscanner begin /k:"FleetManagementSystem" \
-                              /d:sonar.host.url="http://devsecops_sonarqube:9000" \
-                              /d:sonar.login="$SONAR_TOKEN"
+                              /d:sonar.token="$SONAR_TOKEN"
 
                             dotnet build FleetManagementSystem.sln --configuration Release -p:NoWarn=NETSDK1188 -clp:NoSummary
 
-                            dotnet sonarscanner end /d:sonar.login="$SONAR_TOKEN"
+                            dotnet sonarscanner end /d:sonar.token="$SONAR_TOKEN"
                         '''
                     }
                 }
