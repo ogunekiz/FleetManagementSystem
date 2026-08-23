@@ -4,6 +4,7 @@ pipeline {
     environment {
         DOTNET_CLI_HOME = "/tmp/dotnet"
         DOTNET_INSTALL_DIR = "/var/jenkins_home/dotnet"
+        DOTNET_SYSTEM_GLOBALIZATION_INVARIANT = '1'
         PATH = "$PATH:/var/jenkins_home/dotnet:/root/.dotnet/tools"
         WIN_SERVER_IP = '192.168.1.8' // Windows Server IIS IP
     }
@@ -11,7 +12,7 @@ pipeline {
     stages {
         stage('0. Setup .NET 9 SDK') {
             steps {
-                echo '⚙️ .NET 9 SDK ortamı hazırlanıyor...'
+                echo '⚙️ .NET 9 SDK ortamı ve bağımlılıklar hazırlanıyor...'
                 sh '''
                     mkdir -p $DOTNET_INSTALL_DIR
                     if [ ! -f "$DOTNET_INSTALL_DIR/dotnet" ]; then
