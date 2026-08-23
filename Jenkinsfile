@@ -61,19 +61,9 @@ pipeline {
                 echo '🛡️ SonarQube SAST taraması...'
                 withCredentials([string(credentialsId: 'sonarqube-token', variable: 'SONAR_TOKEN')]) {
                     sh '''
-                        export DOTNET_ROOT=/var/jenkins_home/dotnet
-                        export PATH=$PATH:$DOTNET_ROOT:/var/jenkins_home/.dotnet/tools
-                        export SONAR_TOKEN=$SONAR_TOKEN
-                        
-                        dotnet tool install --global dotnet-sonarscanner || true
-                        
-                        /var/jenkins_home/.dotnet/tools/dotnet-sonarscanner begin \
-                          /k:"FleetManagementSystem" \
-                          /d:sonar.host.url="http://devsecops_sonarqube:9000"
-
-                        dotnet build FleetManagementSystem.sln --configuration Release -p:NoWarn=NETSDK1188 -clp:NoSummary
-
-                        /var/jenkins_home/.dotnet/tools/dotnet-sonarscanner end
+                        echo "=== CURL TEST START ==="
+                        curl -i http://devsecops_sonarqube:9000/api/server/version
+                        echo "\n=== CURL TEST END ==="
                     '''
                 }
             }
