@@ -62,13 +62,14 @@ pipeline {
             }
         }
 
-        stage('6. Deploy to Production (IIS)') {
+        stage('6. DAST - OWASP ZAP Security Scan') {
             steps {
-                echo '🚀 Canlı Windows Server IIS ortamına publish ediliyor...'
-                sh 'dotnet publish FleetManagement.WebApi/FleetManagement.WebApi.csproj -c Release -o ./publish'
-                
-                // WebDeploy veya PowerShell/WinRM vasıtasıyla IIS sunucusuna aktarım
-                sh "powershell -Command 'Copy-Item -Path ./publish/* -Destination \\\\${WIN_SERVER_IP}\\c$\\inetpub\\wwwroot\\FleetApi -Recurse -Force'"
+                echo '🔍 Canlı API üzerinde OWASP ZAP ile Dinamik Güvenlik Taraması (DAST) yapılıyor...'
+                sh '''
+                    docker run --rm -v $(pwd):/zap/wrk/:rw -t ghcr.io/zaproxy/zaproxy:stable zap-api-scan.py \
+                    -t http://${WIN_SERVER_IP}/swagger/v1/swagger.json -f openapi -r zap_report.html || true
+                '''
+                }
             }
         }
 
