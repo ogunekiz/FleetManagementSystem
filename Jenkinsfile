@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         DOTNET_CLI_HOME = "/tmp/dotnet"
-        PATH = "$PATH:/root/.dotnet/tools"
+        PATH = "$PATH:/usr/share/dotnet:/usr/local/share/dotnet:/root/.dotnet:/root/.dotnet/tools"
         WIN_SERVER_IP = '192.168.1.8' // Windows Server IIS IP
     }
 
@@ -18,15 +18,22 @@ pipeline {
         stage('2. Restore & Build') {
             steps {
                 echo '🔨 .NET 9 Projesi derleniyor...'
-                sh 'dotnet restore FleetManagementSystem.sln'
-                sh 'dotnet build FleetManagementSystem.sln --configuration Release --no-restore'
+                sh '''
+                    export PATH=$PATH:/usr/share/dotnet:/usr/local/share/dotnet:/root/.dotnet:/root/.dotnet/tools
+                    which dotnet || echo ".NET SDK bulunamadı, varsayılan path kontrol ediliyor..."
+                    dotnet restore FleetManagementSystem.sln
+                    dotnet build FleetManagementSystem.sln --configuration Release --no-restore
+                '''
             }
         }
 
         stage('3. Run Unit & Integration Tests') {
             steps {
                 echo '🧪 Unit ve Integration testler koşturuluyor...'
-                sh 'dotnet test FleetManagementSystem.sln --configuration Release --no-build --logger "trx;LogFileName=test_results.trx" || true'
+                sh '''
+                    export PATH=$PATH:/usr/share/dotnet:/usr/local/share/dotnet:/root/.dotnet:/root/.dotnet/tools
+                    dotnet test FleetManagementSystem.sln --configuration Release --no-build --logger "trx;LogFileName=test_results.trx" || true
+                '''
             }
             post {
                 always {
@@ -43,6 +50,7 @@ pipeline {
                 catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
                     withSonarQubeEnv('SonarQube') {
                         sh '''
+                            export PATH=$PATH:/usr/share/dotnet:/usr/local/share/dotnet:/root/.dotnet:/root/.dotnet/tools
                             dotnet tool install --global dotnet-sonarscanner || true
                             dotnet-sonarscanner begin /k:"FleetManagementSystem" /d:sonar.host.url="http://devsecops_sonarqube:9000" /d:sonar.token="$SONAR_AUTH_TOKEN"
                             dotnet build FleetManagementSystem.sln --configuration Release
@@ -69,7 +77,10 @@ pipeline {
         stage('6. Deploy to Production (IIS)') {
             steps {
                 echo '🚀 Canlı Windows Server IIS ortamına publish ediliyor...'
-                sh 'dotnet publish FleetManagement.WebApi/FleetManagement.WebApi.csproj -c Release -o ./publish'
+                sh '''
+                    export PATH=$PATH:/usr/share/dotnet:/usr/local/share/dotnet:/root/.dotnet:/root/.dotnet/tools
+                    dotnet publish FleetManagement.WebApi/FleetManagement.WebApi.csproj -c Release -o ./publish
+                '''
             }
         }
 
