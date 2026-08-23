@@ -6,24 +6,18 @@ pipeline {
         DOTNET_INSTALL_DIR = '/var/jenkins_home/dotnet'
         DOTNET_SYSTEM_GLOBALIZATION_INVARIANT = '1'
         DOTNET_CLI_TELEMETRY_OPTOUT = '1'
-        // Konsoldaki NETSDK1188 dil/locale uyarılarını (warning) gizlemek için eklenen flags:
-        MSBUILDDISABLENODEREUSE = '1'
-        MSBUILDENABLEALLPROPERTYFUNCTIONS = '1'
         PATH = "$PATH:/var/jenkins_home/dotnet:/root/.dotnet/tools"
-        WIN_SERVER_IP = '192.168.1.8' // Windows Server IIS IP
+        WIN_SERVER_IP = '192.168.1.8'
     }
 
     stages {
         stage('0. Setup .NET 9 SDK') {
             steps {
-                echo '⚙️ .NET 9 SDK ortamı ve bağımlılıklar hazırlanıyor...'
+                echo '⚙️ .NET 9 SDK ortamı hazırlanıyor...'
                 sh '''
                     mkdir -p $DOTNET_INSTALL_DIR
                     if [ ! -f "$DOTNET_INSTALL_DIR/dotnet" ]; then
-                        echo "📥 .NET 9 SDK indiriliyor ve kuruluyor..."
                         curl -sSL https://dot.net/v1/dotnet-install.sh | bash -s -- --version 9.0.100 --install-dir $DOTNET_INSTALL_DIR
-                    else
-                        echo "✅ .NET SDK zaten yüklü."
                     fi
                     $DOTNET_INSTALL_DIR/dotnet --version
                 '''
@@ -32,7 +26,7 @@ pipeline {
 
         stage('1. Checkout Code') {
             steps {
-                echo '📥 GitHub repolarından kodlar çekiliyor...'
+                echo '📥 Kodlar çekiliyor...'
                 git branch: 'main', url: 'https://github.com/ogunekiz/FleetManagementSystem.git'
             }
         }
@@ -42,23 +36,22 @@ pipeline {
                 echo '🔨 .NET 9 Projesi derleniyor...'
                 sh '''
                     dotnet restore FleetManagementSystem.sln
-                    dotnet build FleetManagementSystem.sln --configuration Release --no-restore -clp:NoSummary -warnaserror:NETSDK1188=false /p:WarningLevel=1
+                    dotnet build FleetManagementSystem.sln --configuration Release --no-restore -p:NoWarn=NETSDK1188 -clp:NoSummary
                 '''
             }
         }
 
         stage('3. Run Unit & Integration Tests') {
             steps {
-                echo '🧪 Unit ve Integration testler koşturuluyor...'
+                echo '🧪 Testler koşturuluyor...'
                 sh '''
-                    dotnet test FleetManagementSystem.sln --configuration Release --no-build --logger "junit;LogFilePath=test_results.xml" -clp:NoSummary || true
+                    dotnet test FleetManagementSystem.sln --configuration Release --no-build --logger "junit;LogFilePath=test_results.xml" -p:NoWarn=NETSDK1188 -clp:NoSummary || true
                 '''
             }
             post {
                 always {
                     catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
-                        // mstest yerine yüklü olan JUnit plugin kullanıldı
-                        junit testResults: '**/*.xml', allowEmptyResults: true
+                        junit testResults: '**/test_results.xml', allowEmptyResults: true
                     }
                 }
             }
@@ -66,22 +59,20 @@ pipeline {
 
         stage('4. SAST - SonarQube Code Security Scan') {
             steps {
-                echo '🛡️ SonarQube SAST ve OWASP Top 10 güvenlik taraması başlatılıyor...'
+                echo '🛡️ SonarQube SAST taraması...'
                 catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
                     withCredentials([string(credentialsId: 'sonarqube-token', variable: 'SONAR_TOKEN')]) {
                         withSonarQubeEnv('SonarQube') {
                             sh '''
-                                export PATH="$PATH:$HOME/.dotnet/tools"
                                 dotnet tool install --global dotnet-sonarscanner || true
                                 
-                                # dotnet-sonarscanner doğrudan 'dotnet sonarscanner' olarak çağrılıyor
-                                dotnet sonarscanner begin /k:"FleetManagementSystem" \
+                                /root/.dotnet/tools/dotnet-sonarscanner begin /k:"FleetManagementSystem" \
                                   /d:sonar.host.url="http://devsecops_sonarqube:9000" \
                                   /d:sonar.token="$SONAR_TOKEN"
 
-                                dotnet build FleetManagementSystem.sln --configuration Release -clp:NoSummary
+                                dotnet build FleetManagementSystem.sln --configuration Release -p:NoWarn=NETSDK1188 -clp:NoSummary
 
-                                dotnet sonarscanner end /d:sonar.token="$SONAR_TOKEN"
+                                /root/.dotnet/tools/dotnet-sonarscanner end /d:sonar.token="$SONAR_TOKEN"
                             '''
                         }
                     }
@@ -104,23 +95,21 @@ pipeline {
 
         stage('6. Deploy to Production (IIS)') {
             steps {
-                echo '🚀 Canlı Windows Server IIS ortamına publish ediliyor...'
+                echo '🚀 IIS sunucusuna publish ediliyor...'
                 withCredentials([usernamePassword(credentialsId: 'win-server-creds', passwordVariable: 'WIN_PASS', usernameVariable: 'WIN_USER')]) {
                     sh '''
-                        # 1. Linux Agent üzerinde artifact üret
-                        dotnet publish FleetManagement.WebApi/FleetManagement.WebApi.csproj -c Release -o ./publish -clp:NoSummary
+                        dotnet publish FleetManagement.WebApi/FleetManagement.WebApi.csproj -c Release -o ./publish -p:NoWarn=NETSDK1188 -clp:NoSummary
 
-                        # 2. Gerekli sshpass paketini kontrol et/yükle
                         command -v sshpass >/dev/null 2>&1 || apt-get update && apt-get install -y sshpass
 
-                        # 3. IIS App Pool'u durdur (Kilitli DLL hatası almamak için)
-                        sshpass -p "$WIN_PASS" ssh -o StrictHostKeyChecking=no ${WIN_USER}@${WIN_SERVER_IP} "powershell -Command Stop-WebAppPool -Name FleetManagementApi" || true
+                        # IIS üzerinde hem WebSite hem AppPool durdurularak dosya kilitleri tamamen kaldırılır
+                        sshpass -p "$WIN_PASS" ssh -o StrictHostKeyChecking=no ${WIN_USER}@${WIN_SERVER_IP} "powershell -Command Stop-Website -Name 'FleetManagementApi'; Stop-WebAppPool -Name 'FleetManagementApi'" || true
 
-                        # 4. Publish dosyalarını SCP ile Windows Server'a aktar
+                        # Dosyaları kopyala
                         sshpass -p "$WIN_PASS" scp -r -o StrictHostKeyChecking=no ./publish/* ${WIN_USER}@${WIN_SERVER_IP}:C:/inetpub/wwwroot/FleetApi/
 
-                        # 5. IIS App Pool'u tekrar başlat
-                        sshpass -p "$WIN_PASS" ssh -o StrictHostKeyChecking=no ${WIN_USER}@${WIN_SERVER_IP} "powershell -Command Start-WebAppPool -Name FleetManagementApi"
+                        # IIS servislerini tekrar başlat
+                        sshpass -p "$WIN_PASS" ssh -o StrictHostKeyChecking=no ${WIN_USER}@${WIN_SERVER_IP} "powershell -Command Start-WebAppPool -Name 'FleetManagementApi'; Start-Website -Name 'FleetManagementApi'"
                     '''
                 }
             }
@@ -128,7 +117,7 @@ pipeline {
 
         stage('7. DAST - OWASP ZAP Security Scan') {
             steps {
-                echo '🔍 Canlı API üzerinde OWASP ZAP ile Dinamik Güvenlik Taraması (DAST) yapılıyor...'
+                echo '🔍 OWASP ZAP DAST taraması...'
                 catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
                     sh '''
                         docker run --rm -v $(pwd):/zap/wrk/:rw -t ghcr.io/zaproxy/zaproxy:stable zap-api-scan.py \
@@ -155,10 +144,10 @@ pipeline {
 
     post {
         success {
-            echo '✅ DevSecOps Pipeline başarıyla tamamlandı! Kod IIS üzerinde canlıda.'
+            echo '✅ DevSecOps Pipeline başarıyla tamamlandı!'
         }
         failure {
-            echo '❌ Pipeline sırasında hata alındı veya güvenlik testlerinden geçilemedi!'
+            echo '❌ Pipeline sırasında hata alındı!'
         }
     }
 }
