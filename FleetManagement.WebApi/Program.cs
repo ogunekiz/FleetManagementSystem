@@ -19,8 +19,8 @@ builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
-if (app.Environment.IsDevelopment())
-{
+//if (app.Environment.IsDevelopment())
+//{
 	// .NET 9 OpenAPI Endpoint
 	app.MapOpenApi();
 
@@ -31,7 +31,7 @@ if (app.Environment.IsDevelopment())
 					 .WithTheme(ScalarTheme.Purple)
 					 .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient);
 	});
-}
+//}
 
 app.UseHttpsRedirection();
 
