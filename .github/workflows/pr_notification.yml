@@ -1,0 +1,35 @@
+name: PR Code Review Notification
+
+on:
+  pull_request:
+    types: [opened, reopened]
+    branches:
+      - main
+
+jobs:
+  notify-reviewer:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Email Notification to Reviewer
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          subject: "🚨 [CODE REVIEW GEREKLİ] Yeni Pull Request Açıldı: #${{ github.event.pull_request.number }}"
+          to: ${{ secrets.REVIEWER_EMAIL }}
+          from: "DevSecOps CI System <no-reply@fleetmanagement.com>"
+          body: |
+            Merhaba Yetkili,
+            
+            FleetManagementSystem projesinde incelemeniz gereken yeni bir Pull Request oluşturuldu.
+            
+            - PR Başlığı: ${{ github.event.pull_request.title }}
+            - Oluşturan: ${{ github.actor }}
+            - Hedef Dal: ${{ github.base_ref }}
+            - Kaynak Dal: ${{ github.head_ref }}
+            - PR Bağlantısı: ${{ github.event.pull_request.html_url }}
+            
+            Lütfen kodu inceleyip onay/red durumunu GitHub üzerinden belirtiniz.
