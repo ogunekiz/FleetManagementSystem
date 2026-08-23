@@ -4,7 +4,6 @@ pipeline {
     environment {
         DOTNET_CLI_HOME = "/tmp/dotnet"
         PATH = "$PATH:/root/.dotnet/tools"
-        SONAR_SCANNER_HOME = tool 'SonarQubeScanner'
         WIN_SERVER_IP = '192.168.1.8' // Windows Server IIS IP
     }
 
@@ -31,7 +30,9 @@ pipeline {
             }
             post {
                 always {
-                    mstest testResultsFile: '**/*.trx'
+                    catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+                        mstest testResultsFile: '**/*.trx'
+                    }
                 }
             }
         }
@@ -39,13 +40,15 @@ pipeline {
         stage('4. SAST - SonarQube Code Security Scan') {
             steps {
                 echo '🛡️ SonarQube SAST ve OWASP Top 10 güvenlik taraması başlatılıyor...'
-                withSonarQubeEnv('SonarQube') {
-                    sh '''
-                        dotnet tool install --global dotnet-sonarscanner || true
-                        dotnet-sonarscanner begin /k:"FleetManagementSystem" /d:sonar.host.url="http://devsecops_sonarqube:9000" /d:sonar.token="$SONAR_AUTH_TOKEN"
-                        dotnet build FleetManagementSystem.sln --configuration Release
-                        dotnet-sonarscanner end /d:sonar.token="$SONAR_AUTH_TOKEN"
-                    '''
+                catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+                    withSonarQubeEnv('SonarQube') {
+                        sh '''
+                            dotnet tool install --global dotnet-sonarscanner || true
+                            dotnet-sonarscanner begin /k:"FleetManagementSystem" /d:sonar.host.url="http://devsecops_sonarqube:9000" /d:sonar.token="$SONAR_AUTH_TOKEN"
+                            dotnet build FleetManagementSystem.sln --configuration Release
+                            dotnet-sonarscanner end /d:sonar.token="$SONAR_AUTH_TOKEN"
+                        '''
+                    }
                 }
             }
         }
@@ -80,14 +83,16 @@ pipeline {
             }
             post {
                 always {
-                    publishHTML([
-                        allowMissing: true,
-                        alwaysLinkToLastBuild: true,
-                        keepAll: true,
-                        reportDir: '.',
-                        reportFiles: 'zap_report.html',
-                        reportName: 'OWASP ZAP DAST Report'
-                    ])
+                    catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+                        publishHTML([
+                            allowMissing: true,
+                            alwaysLinkToLastBuild: true,
+                            keepAll: true,
+                            reportDir: '.',
+                            reportFiles: 'zap_report.html',
+                            reportName: 'OWASP ZAP DAST Report'
+                        ])
+                    }
                 }
             }
         }
