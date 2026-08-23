@@ -7,13 +7,19 @@
 
 # Build & Output Folders
 [Bb]in/
+[Oo]bj/
 [Ob]j/
+[Lls]og/
+[Ll]ogs/
 out/
 
 # Visual Studio 2015/2017/2019/2022 working folder
 .vs/
 .idea/
 .vscode/
+*.user
+*.userosscache
+*.sln.docstates
 
 # Environment settings
 appsettings.Development.json
