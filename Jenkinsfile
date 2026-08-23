@@ -96,7 +96,7 @@ pipeline {
 
                         command -v sshpass >/dev/null 2>&1 || apt-get update && apt-get install -y sshpass
 
-                        # WebSite ve AppPool durdurma (PowerShell Hata Toleranslı)
+                        # WebSite ve AppPool durdurma
                         sshpass -p "$WIN_PASS" ssh -o StrictHostKeyChecking=no ${WIN_USER}@${WIN_SERVER_IP} "powershell -Command Stop-Website -Name 'FleetManagementApi' -ErrorAction SilentlyContinue; Stop-WebAppPool -Name 'FleetManagementApi' -ErrorAction SilentlyContinue" || true
 
                         # Dosya Kopyalama
