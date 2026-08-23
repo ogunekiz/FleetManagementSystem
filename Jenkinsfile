@@ -87,10 +87,15 @@ pipeline {
 
         stage('5. Quality Gate Evaluation') {
             steps {
-                timeout(time: 5, unit: 'MINUTES') {
+                timeout(time: 10, unit: 'MINUTES') {
                     script {
-                        echo '⏳ SonarQube Quality Gate onay kontrolü...'
-                        waitForQualityGate abortPipeline: true
+                        echo '⏳ SonarQube Quality Gate onay kontrolü bekleniyor (Max 10 dk)...'
+                        def qg = waitForQualityGate()
+                        if (qg.status != 'OK') {
+                            error "❌ SonarQube Quality Gate başarısız! Durum: ${qg.status}"
+                        } else {
+                            echo "✅ SonarQube Quality Gate başarıyla geçildi! Durum: ${qg.status}"
+                        }
                     }
                 }
             }
