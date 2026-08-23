@@ -63,18 +63,17 @@ pipeline {
                     sh '''
                         export DOTNET_ROOT=/var/jenkins_home/dotnet
                         export PATH=$PATH:$DOTNET_ROOT:/var/jenkins_home/.dotnet/tools
+                        export SONAR_TOKEN=$SONAR_TOKEN
                         
                         dotnet tool install --global dotnet-sonarscanner || true
                         
                         /var/jenkins_home/.dotnet/tools/dotnet-sonarscanner begin \
                           /k:"FleetManagementSystem" \
-                          /d:sonar.host.url="http://devsecops_sonarqube:9000" \
-                          /d:sonar.token="$SONAR_TOKEN"
+                          /d:sonar.host.url="http://devsecops_sonarqube:9000"
 
                         dotnet build FleetManagementSystem.sln --configuration Release -p:NoWarn=NETSDK1188 -clp:NoSummary
 
-                        /var/jenkins_home/.dotnet/tools/dotnet-sonarscanner end \
-                          /d:sonar.token="$SONAR_TOKEN"
+                        /var/jenkins_home/.dotnet/tools/dotnet-sonarscanner end
                     '''
                 }
             }
