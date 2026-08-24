@@ -8,7 +8,7 @@ pipeline {
         DOTNET_SYSTEM_GLOBALIZATION_INVARIANT = '1'
         DOTNET_CLI_TELEMETRY_OPTOUT = '1'
         PATH = "$PATH:/var/jenkins_home/dotnet:/root/.dotnet/tools:/var/jenkins_home/.dotnet/tools"
-        WIN_SERVER_IP = '192.168.1.8'
+        WIN_SERVER_IP = '192.168.1.197'
     }
 
     stages {
