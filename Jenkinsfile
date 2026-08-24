@@ -66,9 +66,9 @@ pipeline {
                             export PATH=$PATH:$DOTNET_ROOT:/var/jenkins_home/.dotnet/tools
                             export SONAR_TOKEN=$SONAR_TOKEN
                             
-                            # devsecops_sonarqube adından IP çözümleniyor (HTTP 400 Host hatasını aşmak için)
+                            # Dinamik olarak IP çözümleniyor
                             SONAR_IP=$(getent hosts devsecops_sonarqube | awk '{ print $1 }')
-                            echo "🎯 Hedef SonarQube IP Adresi: http://${SONAR_IP}:9000"
+                            echo "🎯 Hedef SonarQube IP: http://${SONAR_IP}:9000"
 
                             dotnet tool install --global dotnet-sonarscanner || true
                             
@@ -89,12 +89,12 @@ pipeline {
             steps {
                 timeout(time: 10, unit: 'MINUTES') {
                     script {
-                        echo '⏳ SonarQube Quality Gate onay kontrolü bekleniyor (Max 10 dk)...'
+                        echo '⏳ SonarQube Quality Gate onay kontrolü...'
                         def qg = waitForQualityGate()
                         if (qg.status != 'OK') {
-                            error "❌ SonarQube Quality Gate başarısız! Durum: ${qg.status}"
+                            error "❌ Quality Gate başarısız! Durum: ${qg.status}"
                         } else {
-                            echo "✅ SonarQube Quality Gate başarıyla geçildi! Durum: ${qg.status}"
+                            echo "✅ Quality Gate başarılı!"
                         }
                     }
                 }
